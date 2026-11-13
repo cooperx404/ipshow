@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>رادار موقعیت | IP & Location</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#07111f;--panel:#101e31;--panel2:#142740;--text:#eaf3ff;--muted:#91a8c4;--cyan:#38d9ff;--green:#43e6a1;--line:#223b58;--red:#ff647c}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0%,#123052 0,transparent 34%),var(--bg);color:var(--text);font-family:Tahoma,Arial,sans-serif}
+header{padding:25px 5vw 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(22px,4vw,34px);letter-spacing:-1px}.glow{color:var(--cyan);text-shadow:0 0 18px #38d9ff66}
+header p{color:var(--muted);margin:8px 0 0;font-size:13px}
+.badge{border:1px solid #28617a;color:var(--cyan);padding:8px 12px;border-radius:30px;font-size:12px}
+main{max-width:1400px;margin:auto;padding:22px 5vw 40px}
+.grid{display:grid;grid-template-columns: minmax(0,1.7fr) minmax(280px,.9fr);gap:18px}
+.card{background:linear-gradient(145deg,var(--panel),#0c192a);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 12px 35px #0003}
+.cardhead{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cardhead h2{font-size:15px;margin:0}.sub{font-size:11px;color:var(--muted)}
+#map{height:530px;background:#0b1726;direction:ltr}
+.mapfoot{padding:10px 15px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.side{display:grid;gap:14px;align-content:start}.metric{padding:16px 17px}
+.label{color:var(--muted);font-size:12px;margin-bottom:9px}.value{font-size:19px;font-weight:bold;overflow-wrap:anywhere;direction:ltr;text-align:right}.smallvalue{font-size:13px;line-height:1.8;color:#d7e6f8}
+.row{display:flex;gap:9px;flex-wrap:wrap;padding:14px}
+button{border:0;border-radius:11px;padding:12px 14px;font-weight:bold;cursor:pointer;font-family:inherit;transition:.2s}
+button:hover{transform:translateY(-1px);filter:brightness(1.1)}
+.primary{background:linear-gradient(90deg,#16b8e8,#367cff);color:#031323;flex:1}
+.secondary{background:#1b304a;color:var(--text);border:1px solid #31506f;flex:1}
+.danger{background:#3b1d2b;color:#ff9bac;border:1px solid #713349}
+.status{padding:12px 15px;border-radius:12px;background:#0b192a;border:1px solid var(--line);font-size:12px;color:var(--muted);line-height:1.8}
+.status b{color:var(--green)}.info{padding:15px 17px;color:var(--muted);font-size:12px;line-height:1.9}
+.info strong{color:var(--text)}
+footer{text-align:center;color:#7188a4;font-size:11px;padding:22px}
+.leaflet-container{font-family:Tahoma,Arial,sans-serif}
+@media(max-width:850px){.grid{grid-template-columns:1fr}#map{height:430px}}
+@media(max-width:480px){header{padding:20px 18px}main{padding:16px 12px 28px}#map{height:380px}.value{font-size:16px}}
+</style>
+</head>
+<body>
+<header>
+ <div><h1>RADAR <span class="glow">/ موقعیت‌یاب</span></h1><p>نمایش موقعیت دستگاه، IP عمومی و محدوده تقریبی روی نقشه</p></div>
+ <span class="badge">● داشبورد زنده — فقط با اجازه شما</span>
+</header>
+<main>
+ <div class="grid">
+  <section class="card">
+   <div class="cardhead"><h2>نقشه زنده</h2><span class="sub" id="mapMode">در انتظار موقعیت…</span></div>
+   <div id="map"></div>
+   <div class="mapfoot"><span>نقشه: OpenStreetMap</span><span id="updated">هنوز به‌روزرسانی نشده</span></div>
+  </section>
+  <aside class="side">
+   <section class="card">
+    <div class="cardhead"><h2>کنترل‌ها</h2><span class="sub">CONTROL CENTER</span></div>
+    <div class="row">
+     <button class="primary" id="locBtn">📍 دریافت موقعیت من</button>
+     <button class="secondary" id="ipBtn">🌐 بررسی IP</button>
+     <button class="secondary" id="bothBtn">⚡ بروزرسانی همه</button>
+     <button class="secondary" id="clearBtn">پاک‌کردن نشانگرها</button>
+    </div>
+    <div class="info">موقعیت دقیق فقط پس از تأیید پنجرهٔ اجازهٔ مرورگر دریافت می‌شود. اطلاعات IP معمولاً فقط مکان تقریبی شبکه را نشان می‌دهد.</div>
+   </section>
+   <section class="card metric">
+    <div class="label">IP عمومی</div><div class="value" id="ip">—</div>
+    <div class="label" style="margin-top:13px">ارائه‌دهنده / سازمان</div><div class="smallvalue" id="org">—</div>
+    <div class="label" style="margin-top:13px">کشور، شهر و منطقه</div><div class="smallvalue" id="ipPlace">—</div>
+   </section>
+   <section class="card metric">
+    <div class="label">GPS / موقعیت مرورگر</div><div class="value" id="gps">—</div>
+    <div class="label" style="margin-top:13px">دقت اعلام‌شده</div><div class="smallvalue" id="accuracy">—</div>
+    <div class="label" style="margin-top:13px">نشانی تقریبی</div><div class="smallvalue" id="address">—</div>
+   </section>
+   <section class="card">
+    <div class="cardhead"><h2>ابزارهای سریع</h2></div>
+    <div class="row">
+     <button class="secondary" id="copyBtn">کپی مختصات</button>
+     <button class="secondary" id="osmBtn">بازکردن نقشه بزرگ</button>
+    </div>
+    <div class="info status" id="status"><b>آماده</b> — برای شروع، یکی از دکمه‌های بالا را بزن.</div>
+   </section>
+  </aside>
+ </div>
+</main>
+<footer>این صفحه اطلاعات را روی همین دستگاه نمایش می‌دهد و به سرور شخصی ارسال نمی‌کند. سرویس‌های نقشه و IP برای پاسخ‌گویی، درخواست شبکه دریافت می‌کنند.</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const map=L.map('map').setView([20,0],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+let gpsMarker=null,ipMarker=null,accuracyCircle=null,lastCoords=null;
+function status(msg){$('status').innerHTML=msg}
+function stamp(){$('updated').textContent='آخرین بررسی: '+new Date().toLocaleTimeString('fa-IR')}
+function popupIcon(color){return L.divIcon({className:'',html:`<div style="width:18px;height:18px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 0 18px ${color};"></div>`,iconSize:[18,18],iconAnchor:[9,9]})}
+async function getIP(){
+ $('ipBtn').disabled=true;status('در حال دریافت اطلاعات IP عمومی…');
+ try{
+  const r=await fetch('https://ipapi.co/json/');if(!r.ok)throw Error('پاسخ سرویس ناموفق بود');
+  const d=await r.json();if(d.error)throw Error(d.reason||'خطا در سرویس IP');
+  $('ip').textContent=d.ip||'نامشخص';
+  $('org').textContent=[d.org,d.asn].filter(Boolean).join(' • ')||'نامشخص';
+  $('ipPlace').textContent=[d.city,d.region,d.country_name].filter(Boolean).join('، ')||'نامشخص';
+  if(d.latitude&&d.longitude){
+   const p=[Number(d.latitude),Number(d.longitude)];
+   if(ipMarker)map.removeLayer(ipMarker);
+   ipMarker=L.marker(p,{icon:popupIcon('#ffb84d')}).addTo(map).bindPopup('محدوده تقریبی بر اساس IP');
+   if(!lastCoords){map.setView(p,6);$('mapMode').textContent='محدوده تقریبی IP'}
+  }
+  status('<b>انجام شد</b> — اطلاعات IP دریافت شد. مکان IP ممکن است با محل واقعی شما فاصله داشته باشد.');stamp();
+ }catch(e){status('خطا در دریافت IP: '+e.message+' — اتصال اینترنت را بررسی کن.')}
+ finally{$('ipBtn').disabled=false}
+}
+function getGPS(){
+ if(!navigator.geolocation){status('این مرورگر از موقعیت‌یابی پشتیبانی نمی‌کند.');return}
+ status('مرورگر درخواست اجازهٔ موقعیت را نمایش می‌دهد…');
+ navigator.geolocation.getCurrentPosition(async pos=>{
+  const {latitude:lat,longitude:lon,accuracy}=pos.coords;lastCoords=[lat,lon];
+  $('gps').textContent=lat.toFixed(6)+', '+lon.toFixed(6);
+  $('accuracy').textContent='حدود '+Math.round(accuracy)+' متر';
+  if(gpsMarker)map.removeLayer(gpsMarker);if(accuracyCircle)map.removeLayer(accuracyCircle);
+  gpsMarker=L.marker(lastCoords,{icon:popupIcon('#38d9ff')}).addTo(map).bindPopup('موقعیت دستگاه شما').openPopup();
+  accuracyCircle=L.circle(lastCoords,{radius:accuracy,color:'#38d9ff',fillOpacity:.08,weight:1}).addTo(map);
+  map.setView(lastCoords,Math.max(14,map.getZoom()));
+  $('mapMode').textContent='موقعیت دستگاه (GPS)';$('address').textContent='در حال پیدا کردن نام مکان…';
+  try{
+   const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
+   const d=await r.json();$('address').textContent=d.display_name||'نشانی پیدا نشد';
+  }catch{$('address').textContent='نام مکان در دسترس نیست'}
+  status('<b>موقعیت دریافت شد</b> — نشانگر آبی موقعیت دستگاه و دایره، محدودهٔ دقت تقریبی است.');stamp();
+ },err=>{
+  const messages={1:'اجازهٔ موقعیت‌یابی رد شد.',2:'موقعیت فعلاً در دسترس نیست.',3:'زمان دریافت موقعیت تمام شد.'};
+  status(messages[err.code]||'خطا در دریافت موقعیت. مطمئن شو سایت در بستر امن HTTPS یا localhost باز شده است.');
+ },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
+$('locBtn').onclick=getGPS;$('ipBtn').onclick=getIP;
+$('bothBtn').onclick=()=>{getIP();getGPS()};
+$('clearBtn').onclick=()=>{[gpsMarker,ipMarker,accuracyCircle].forEach(x=>x&&map.removeLayer(x));gpsMarker=ipMarker=accuracyCircle=null;lastCoords=null;$('mapMode').textContent='نشانگرها پاک شدند';status('نشانگرهای نقشه پاک شدند؛ اطلاعات متنی حذف نشده‌اند.')};
+$('copyBtn').onclick=async()=>{if(!lastCoords){status('اول موقعیت دستگاه را دریافت کن.');return}try{await navigator.clipboard.writeText(lastCoords.join(', '));status('<b>کپی شد</b> — مختصات در کلیپ‌بورد قرار گرفت.')}catch{status('کپی خودکار در این مرورگر ممکن نیست. مختصات را دستی انتخاب کن.')}};
+$('osmBtn').onclick=()=>{const p=lastCoords||(ipMarker&&ipMarker.getLatLng());if(!p){status('هنوز مختصاتی نداریم.');return}const lat=Array.isArray(p)?p[0]:p.lat,lon=Array.isArray(p)?p[1]:p.lng;window.open(`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=15/${lat}/${lon}`,'_blank','noopener')};
+</script>
+</body>
+</html>
